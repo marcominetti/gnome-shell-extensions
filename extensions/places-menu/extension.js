@@ -20,19 +20,34 @@ const Me = ExtensionUtils.getCurrentExtension();
 const Convenience = Me.imports.convenience;
 const PlaceDisplay = Me.imports.placeDisplay;
 
-const PLACE_ICON_SIZE = 16;
+const PLACE_ICON_SIZE = 14;
 
 const PlaceMenuItem = new Lang.Class({
     Name: 'PlaceMenuItem',
-    Extends: PopupMenu.PopupMenuItem,
+    Extends: PopupMenu.PopupBaseMenuItem,
 
     _init: function(info) {
-	this.parent(info.name);
+	this.parent();
 	this._info = info;
 
-	this.addActor(new St.Icon({ gicon: info.icon,
-				    icon_size: PLACE_ICON_SIZE }),
-		     { align: St.Align.END, span: -1 });
+        this._icon = new St.Icon({ gicon: info.icon,
+                                   icon_size: PLACE_ICON_SIZE });
+	this.addActor(this._icon);
+
+        this._label = new St.Label({ text: info.name });
+        this.addActor(this._label);
+
+        this._changedId = info.connect('changed',
+                                       Lang.bind(this, this._propertiesChanged));
+    },
+
+    destroy: function() {
+        if (this._changedId) {
+            this._info.disconnect(this._changedId);
+            this._changedId = 0;
+        }
+
+        this.parent();
     },
 
     activate: function(event) {
@@ -40,35 +55,45 @@ const PlaceMenuItem = new Lang.Class({
 
 	this.parent(event);
     },
+
+    _propertiesChanged: function(info) {
+        this._icon.gicon = info.icon;
+        this._label.text = info.name;
+    },
 });
 
-const SECTIONS = {
-    'special': N_("Places"),
-    'devices': N_("Devices"),
-    'bookmarks': N_("Bookmarks"),
-    'network': N_("Network")
-}
+const SECTIONS = [
+    'special',
+    'devices',
+    'bookmarks',
+    'network'
+]
 
 const PlacesMenu = new Lang.Class({
     Name: 'PlacesMenu.PlacesMenu',
-    Extends: PanelMenu.SystemStatusButton,
+    Extends: PanelMenu.Button,
 
     _init: function() {
-        this.parent('folder-symbolic');
+	let icon = new St.Icon({ icon_size: 13, icon_name: 'folder-symbolic'  });
+	
+	let label = new St.Label({ text: _("Places") });
+        this.parent(0.0, label.text);
+        this.actor.add_actor(icon);
+
         this.placesManager = new PlaceDisplay.PlacesManager();
 
 	this._sections = { };
 
-	for (let foo in SECTIONS) {
-	    let id = foo; // stupid JS closure semantics...
-	    this._sections[id] = { section: new PopupMenu.PopupMenuSection(),
-				   title: Gettext.gettext(SECTIONS[id]) };
+	for (let i=0; i < SECTIONS.length; i++) {
+	    let id = SECTIONS[i];
+	    this._sections[id] = new PopupMenu.PopupMenuSection();
 	    this.placesManager.connect(id + '-updated', Lang.bind(this, function() {
 		this._redisplay(id);
 	    }));
 
 	    this._create(id);
-	    this.menu.addMenuItem(this._sections[id].section);
+	    this.menu.addMenuItem(this._sections[id]);
+	    this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 	}
     },
 
@@ -79,22 +104,17 @@ const PlacesMenu = new Lang.Class({
     },
 
     _redisplay: function(id) {
-	this._sections[id].section.removeAll();
+	this._sections[id].removeAll();
         this._create(id);
     },
 
     _create: function(id) {
-	let title = new PopupMenu.PopupMenuItem(this._sections[id].title,
-						{ reactive: false,
-                                                  style_class: 'popup-subtitle-menu-item' });
-	this._sections[id].section.addMenuItem(title);
-
         let places = this.placesManager.get(id);
 
         for (let i = 0; i < places.length; i++)
-            this._sections[id].section.addMenuItem(new PlaceMenuItem(places[i]));
+            this._sections[id].addMenuItem(new PlaceMenuItem(places[i]));
 
-	this._sections[id].section.actor.visible = places.length > 0;
+	this._sections[id].actor.visible = places.length > 0;
     }
 });
 

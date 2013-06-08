@@ -24,7 +24,7 @@ const MountMenuItem = new Lang.Class({
     _init: function(mount) {
 	this.parent();
 
-	this.label = new St.Label({ text: mount.get_name() });
+	this.label = new St.Label({ text: mount.get_name()  + '                              ' });
 	this.addActor(this.label);
         this.actor.label_actor = this.label;
 
@@ -102,12 +102,14 @@ const DriveMenu = new Lang.Class({
 
 	this._monitor.get_mounts().forEach(Lang.bind(this, this._addMount));
 
+	/*
 	this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 	this.menu.addAction(_("Open File"), function(event) {
 	    let appSystem = Shell.AppSystem.get_default();
 	    let app = appSystem.lookup_app('nautilus.desktop');
 	    app.activate_full(-1, event.get_time());
 	});
+	*/
 
 	this._updateMenuVisibility();
     },
@@ -178,7 +180,7 @@ let _indicator;
 
 function enable() {
     _indicator = new DriveMenu;
-    Main.panel.addToStatusArea('drive-menu', _indicator);
+    Main.panel.addToStatusArea('drive-menu', _indicator, 2, 'left');
 }
 
 function disable() {
